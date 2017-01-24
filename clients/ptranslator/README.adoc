@@ -1,10 +1,10 @@
 = ptrans
 :type: article
 
-= ptrans - rhq-metrics restServlet proxy
+= ptrans - hawkular-metrics restServlet proxy
 
 This is a proxy server taking in metrics data in several common formats and emitting
-them as rest-requests into rhq-metrics backend for storage.
+them as rest-requests into hawkular-metrics backend for storage.
 
 You can configure ports to use in a `ptrans.properties` file, which you can pass on the
 command line. Otherwise an internal default is used. See also below.
@@ -19,7 +19,7 @@ for syslog messages. If a message is of the format
   type=metric thread.count=7 thread.active=5 heap.permgen.size=20000000
 
 Then it is taken and the individual key-value-pairs are broken apart and
-sent as individual metrics to a rhq-metrics rest server. The timestamp
+sent as individual metrics to a hawkular-metrics rest server. The timestamp
 is the current time on the proxy when the udp packet was received.
 
 ==== Configuring syslog
@@ -82,13 +82,23 @@ E.g.: `$ echo "my_time:100|ms" | nc -u4 localhost 8125`
 
 == Running ptrans
 
-You can use the provided `start.sh` script to start the server
+*With `start.sh`*
+
+You can use the provided `start.sh` script to start the server (this will build the source first).
 
 Before you start the proxy, make sure the rest-server is running.
 
-You can pass a different properties file on the command line:
+Make sure to specify a configuration file on the command line:
 
-`$ ./start.sh /tmp/my.properties`
+ $ ./start.sh -c ptrans.conf
+
+*With Maven*
+
+Once the project is built, simply run the following command:
+
+ mvn exec:java
+
+By default, the ptrans.conf configuration at the project base directory will be used.
 
 == Room for improvement:
 

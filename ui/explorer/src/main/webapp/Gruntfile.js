@@ -1,10 +1,44 @@
-'use strict';
+/*
+ * Copyright 2014-2015 Red Hat, Inc. and/or its affiliates
+ * and other contributors as indicated by the @author tags.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *    http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 
+/*
+ * Copyright 2014 Red Hat, Inc.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *    http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 
 module.exports = function (grunt) {
+    'use strict';
 
     require('load-grunt-tasks')(grunt);
     require('time-grunt')(grunt);
+
+    grunt.loadNpmTasks('grunt-typescript');
+
 
     // Define the configuration for all the tasks
     grunt.initConfig({
@@ -13,7 +47,40 @@ module.exports = function (grunt) {
         rhqMetrics: {
             // configurable paths
             app: './',
-            dist: 'dist'
+            dist: '../../../target/dist'
+        },
+
+        typescript: {
+            base: {
+                src: [ 'vendor/**/*.d.ts', 'scripts/**/*.ts' ],
+                dest: '<%= rhqMetrics.dist %>',
+                options: {
+                    removeComments: true,
+                    target: 'ES5',
+                    declaration: false,
+                    sourceMap: true,
+                    ignoreError: true,
+                    indentStep: 5,
+                    references: ['vendor/**/*.d.ts'],
+                    watch: false
+                }
+            },
+            dev: {
+                src: [ 'vendor/**/*.d.ts', 'scripts/**/*.ts'  ],
+                options: {
+                    removeComments: true,
+                    target: 'ES5',
+                    declaration: false,
+                    sourceMap: true,
+                    noEmitOnError: true,
+                    indentStep: 5,
+                    references: ['vendor/**/*.d.ts'],
+                    watch: grunt.option('watch') ? {
+                        path: 'scripts',
+                        atBegin: true
+                    } : false
+                }
+            }
         },
 
         // Watches files for changes and runs tasks based on the changed files
@@ -90,8 +157,7 @@ module.exports = function (grunt) {
                 reporter: require('jshint-stylish')
             },
             all: [
-                'Gruntfile.js',
-                '<%= rhqMetrics.app %>/scripts/{,*/}*.js'
+                'Gruntfile.js'
             ],
             test: {
                 options: {
@@ -113,7 +179,10 @@ module.exports = function (grunt) {
                             '!<%= rhqMetrics.dist %>/.git*'
                         ]
                     }
-                ]
+                ],
+                options: {
+                    force: true
+                }
             },
             server: '.tmp'
         },
@@ -143,6 +212,14 @@ module.exports = function (grunt) {
             }
         },
 
+
+        bower: {
+            install: {
+                options: {
+                    targetDir: './bower_components'
+                }
+            }
+        },
 
         // Renames files for browser caching purposes
         rev: {
@@ -175,7 +252,12 @@ module.exports = function (grunt) {
                             'views/{,*/}*.html',
                             'bower_components/**/*',
                             'images/{,*/}*.{webp}',
-                            'fonts/*'
+                            'fonts/*',
+                            'scripts/**/*',
+                            'css/**/*',
+                            'img/**/*',
+                            'WEB-INF/*',
+                            '!**/.*'
                         ]
                     },
                     {
@@ -204,8 +286,6 @@ module.exports = function (grunt) {
             ],
             dist: [
                 'copy:styles',
-                'imagemin',
-                'svgmin'
             ]
         },
 
@@ -231,12 +311,12 @@ module.exports = function (grunt) {
             'concurrent:server',
             'autoprefixer',
             'connect:livereload',
+            'typescript:dev',
             'watch'
         ]);
     });
 
-
-    //grunt.registerTask("ts", ["ts:dev"]);
+    grunt.registerTask('ts', ['typescript:base']);
 
     grunt.registerTask('test', [
         'clean:server',
@@ -248,17 +328,16 @@ module.exports = function (grunt) {
 
     grunt.registerTask('build', [
         'clean:dist',
-        'bower-install',
-        'useminPrepare',
+        'bower:install',
+        'typescript:base',
         'concurrent:dist',
         'autoprefixer',
         'copy:dist',
-        'rev'
     ]);
 
     grunt.registerTask('default', [
-        'newer:jshint',
-        'test',
+        //'newer:jshint',
+        //'test',
         'build'
     ]);
 };

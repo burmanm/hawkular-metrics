@@ -1,33 +1,62 @@
 <?xml version="1.0" encoding="UTF-8"?>
+<!--
+
+    Copyright 2014-2015 Red Hat, Inc. and/or its affiliates
+    and other contributors as indicated by the @author tags.
+
+    Licensed under the Apache License, Version 2.0 (the "License");
+    you may not use this file except in compliance with the License.
+    You may obtain a copy of the License at
+
+       http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing, software
+    distributed under the License is distributed on an "AS IS" BASIS,
+    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+    See the License for the specific language governing permissions and
+    limitations under the License.
+
+-->
 <project xmlns="http://maven.apache.org/POM/4.0.0"
          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
   <modelVersion>4.0.0</modelVersion>
 
   <parent>
-    <groupId>org.rhq.metrics</groupId>
-    <artifactId>rhq-metrics-parent</artifactId>
-    <version>0.2.4-SNAPSHOT</version>
+    <groupId>org.hawkular.metrics</groupId>
+    <artifactId>hawkular-metrics-parent</artifactId>
+    <version>0.3.1-SNAPSHOT</version>
     <relativePath>../../pom.xml</relativePath>
   </parent>
 
-  <groupId>org.rhq.metrics</groupId>
   <artifactId>ptrans</artifactId>
-  <version>0.2.4-SNAPSHOT</version>
-  <name>Protocol Translator</name>
   <packaging>jar</packaging>
-  <description>A protocol translator that can receive data from various system and feed it to the RHQ Metrics REST api.</description>
+
+  <name>Protocol Translator</name>
+  <description>A protocol translator that can receive data from various system and feed it to the Hawkular Metrics REST api.</description>
+
+  <properties>
+    <hawkular-metrics.backend>cass</hawkular-metrics.backend>
+    <cassandra.keyspace>hawkular_metrics_ptrans_integration_tests</cassandra.keyspace>
+    <!-- IMPORTANT: The port must be the port offset + 8080. -->
+    <base-uri>127.0.0.1:55988/hawkular-metrics</base-uri>
+    <ptrans.wildfly.port.offset>47908</ptrans.wildfly.port.offset>
+    <!-- IMPORTANT: The management port must be the port offset + 9990. -->
+    <ptrans.wildfly.management.port>57898</ptrans.wildfly.management.port>
+    <wildfly.logging.console.level>ERROR</wildfly.logging.console.level>
+    <wildfly.logging.file.level>DEBUG</wildfly.logging.file.level>
+  </properties>
 
   <dependencies>
     <dependency>
-      <groupId>org.rhq.metrics</groupId>
+      <groupId>org.hawkular.metrics</groupId>
       <artifactId>clients-common</artifactId>
       <version>${project.version}</version>
     </dependency>
     <dependency>
       <groupId>io.netty</groupId>
       <artifactId>netty-all</artifactId>
-      <version>4.0.20.Final</version>
+      <version>4.0.24.Final</version>
     </dependency>
     <dependency>
       <groupId>org.acplt</groupId>
@@ -44,22 +73,234 @@
       <artifactId>log4j</artifactId>
       <version>${log4j.version}</version>
     </dependency>
+    <dependency>
+      <groupId>commons-cli</groupId>
+      <artifactId>commons-cli</artifactId>
+      <version>1.2</version>
+    </dependency>
+    <dependency>
+      <groupId>com.github.jnr</groupId>
+      <artifactId>jnr-posix</artifactId>
+      <version>3.0.9</version>
+    </dependency>
+    <!-- Tests dependencies -->
+    <dependency>
+      <groupId>junit</groupId>
+      <artifactId>junit</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>com.google.guava</groupId>
+      <artifactId>guava</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.mockito</groupId>
+      <artifactId>mockito-core</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>com.fasterxml.jackson.core</groupId>
+      <artifactId>jackson-databind</artifactId>
+      <version>2.4.3</version>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>${project.groupId}</groupId>
+      <artifactId>hawkular-metrics-api-jaxrs</artifactId>
+      <version>${project.version}</version>
+      <type>war</type>
+      <scope>test</scope>
+    </dependency>
   </dependencies>
 
   <build>
+    <finalName>ptrans</finalName>
     <plugins>
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
-        <artifactId>maven-source-plugin</artifactId>
+        <artifactId>maven-resources-plugin</artifactId>
         <executions>
           <execution>
-            <id>attach-sources</id>
+            <id>copy-standalone-test</id>
+            <phase>process-test-resources</phase>
             <goals>
-              <goal>jar</goal>
+              <goal>copy-resources</goal>
+            </goals>
+            <configuration>
+              <!--
+                We cannot specify an arbitrary path to standalone-test.xml, so we include the necessary
+                configuration files and override the default configuration directory. See
+                https://issues.jboss.org/browse/JBASMP-75 for details.
+              -->
+              <outputDirectory>${project.build.directory}/wildfly-configuration</outputDirectory>
+              <overwrite>true</overwrite>
+              <useDefaultDelimiters>false</useDefaultDelimiters>
+              <delimiters>
+                <delimiter>@@@</delimiter>
+              </delimiters>
+              <resources>
+                <resource>
+                  <directory>${project.basedir}/src/test/wildfly-configuration</directory>
+                  <includes>
+                    <include>*</include>
+                  </includes>
+                  <filtering>true</filtering>
+                </resource>
+              </resources>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-surefire-plugin</artifactId>
+        <configuration>
+          <excludes>
+            <exclude>**/*ITest*</exclude>
+          </excludes>
+        </configuration>
+      </plugin>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-assembly-plugin</artifactId>
+        <executions>
+          <execution>
+            <id>all</id>
+            <phase>package</phase>
+            <goals>
+              <goal>single</goal>
+            </goals>
+            <configuration>
+              <descriptor>${project.basedir}/src/assembly/all/assembly.xml</descriptor>
+              <archive>
+                <manifest>
+                  <mainClass>org.hawkular.metrics.clients.ptrans.Main</mainClass>
+                </manifest>
+              </archive>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-failsafe-plugin</artifactId>
+        <configuration>
+          <includes>
+            <include>**/*ITest*</include>
+          </includes>
+          <systemPropertyVariables>
+            <keyspace>${cassandra.keyspace}</keyspace>
+            <hawkular-metrics.base-uri>${base-uri}</hawkular-metrics.base-uri>
+          </systemPropertyVariables>
+        </configuration>
+        <executions>
+          <execution>
+            <goals>
+              <goal>integration-test</goal>
+              <goal>verify</goal>
             </goals>
           </execution>
         </executions>
       </plugin>
+      <plugin>
+        <groupId>org.wildfly.plugins</groupId>
+        <artifactId>wildfly-maven-plugin</artifactId>
+        <configuration>
+          <skip>${skipTests}</skip>
+          <port>${ptrans.wildfly.management.port}</port>
+        </configuration>
+        <executions>
+          <execution>
+            <id>start-wildfly</id>
+            <phase>pre-integration-test</phase>
+            <goals>
+              <goal>start</goal>
+            </goals>
+            <configuration>
+              <serverConfig>standalone-test.xml</serverConfig>
+              <javaOpts>
+                <javaOpt>-Xms64m</javaOpt>
+                <javaOpt>-Xmx512m</javaOpt>
+                <javaOpt>-Xss256k</javaOpt>
+                <javaOpt>-Djava.net.preferIPv4Stack=true</javaOpt>
+                <javaOpt>-Dsun.rmi.dgc.client.gcInterval=3600000</javaOpt>
+                <javaOpt>-Dsun.rmi.dgc.server.gcInterval=3600000</javaOpt>
+                <javaOpt>-Djboss.socket.binding.port-offset=${ptrans.wildfly.port.offset}</javaOpt>
+                <javaOpt>-Djboss.server.config.dir=${project.build.directory}/wildfly-configuration</javaOpt>
+                <javaOpt>-Dhawkular-metrics.backend=${hawkular-metrics.backend}</javaOpt>
+                <javaOpt>-Dcassandra.keyspace=${cassandra.keyspace}</javaOpt>
+                <javaOpt>-Dcassandra.resetdb=true</javaOpt>
+                <javaOpt>-Xdebug</javaOpt>
+                <javaOpt>-Xrunjdwp:transport=dt_socket,server=y,suspend=n,address=8787</javaOpt>
+              </javaOpts>
+            </configuration>
+          </execution>
+          <execution>
+            <id>deploy-webapp</id>
+            <phase>pre-integration-test</phase>
+            <goals>
+              <goal>deploy-artifact</goal>
+            </goals>
+            <configuration>
+              <groupId>${project.groupId}</groupId>
+              <artifactId>hawkular-metrics-api-jaxrs</artifactId>
+              <name>hawkular-metric-rest.war</name>
+            </configuration>
+          </execution>
+          <execution>
+            <id>stop-wildfly</id>
+            <phase>post-integration-test</phase>
+            <goals>
+              <goal>shutdown</goal>
+            </goals>
+          </execution>
+        </executions>
+      </plugin>
+      <plugin>
+        <groupId>org.codehaus.mojo</groupId>
+        <artifactId>exec-maven-plugin</artifactId>
+        <configuration>
+          <mainClass>org.hawkular.metrics.clients.ptrans.Main</mainClass>
+          <systemProperties>
+            <systemProperty>
+              <key>log4j.configuration</key>
+              <value>file:${project.basedir}/log4j-dev.xml</value>
+            </systemProperty>
+          </systemProperties>
+          <arguments>
+            <argument>-c</argument>
+            <argument>${project.basedir}/ptrans.conf</argument>
+          </arguments>
+        </configuration>
+      </plugin>
     </plugins>
   </build>
+
+  <profiles>
+    <profile>
+      <id>publish</id>
+      <build>
+        <plugins>
+          <plugin>
+            <groupId>org.apache.maven.plugins</groupId>
+            <artifactId>maven-assembly-plugin</artifactId>
+            <executions>
+              <execution>
+                <id>dist</id>
+                <phase>package</phase>
+                <goals>
+                  <goal>single</goal>
+                </goals>
+                <configuration>
+                  <descriptor>src/assembly/dist/assembly.xml</descriptor>
+                </configuration>
+              </execution>
+            </executions>
+          </plugin>
+        </plugins>
+      </build>
+    </profile>
+  </profiles>
+
 </project>

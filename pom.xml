@@ -1,232 +1,44 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+<!--
 
+    Copyright 2014-2015 Red Hat, Inc. and/or its affiliates
+    and other contributors as indicated by the @author tags.
+
+    Licensed under the Apache License, Version 2.0 (the "License");
+    you may not use this file except in compliance with the License.
+    You may obtain a copy of the License at
+
+       http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing, software
+    distributed under the License is distributed on an "AS IS" BASIS,
+    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+    See the License for the specific language governing permissions and
+    limitations under the License.
+
+-->
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
   <modelVersion>4.0.0</modelVersion>
 
-  <groupId>org.rhq.metrics</groupId>
-  <artifactId>rhq-metrics-parent</artifactId>
-  <version>0.2.4-SNAPSHOT</version>
+  <parent>
+    <groupId>org.hawkular</groupId>
+    <artifactId>hawkular-parent</artifactId>
+    <version>10</version>
+  </parent>
+
+  <groupId>org.hawkular.metrics</groupId>
+  <artifactId>hawkular-metrics-parent</artifactId>
+  <version>0.3.1-SNAPSHOT</version>
   <packaging>pom</packaging>
 
-  <name>RHQ Metrics</name>
-  <url>https://community.jboss.org/en/rhq/rhq-metrics</url>
-  <description>RHQ Metrics is a metrics collection, aggregation, visualization framework.</description>
-
-
-  <properties>
-    <test.keyspace>rhqtest</test.keyspace>
-    <nodes>127.0.0.1</nodes>
-
-    <datastax.driver.version>2.0.1</datastax.driver.version>
-    <joda.time.version>2.3</joda.time.version>
-    <testng.version>6.8.8</testng.version>
-    <slf4j.version>1.7.7</slf4j.version>
-    <log4j.version>1.2.17</log4j.version>
-    <vertx.version>2.1RC3</vertx.version>
-    <vertx.testtools.version>2.0.3-final</vertx.testtools.version>
-    <jackson.version>2.3.2</jackson.version>
-    <guava.version>16.0.1</guava.version>
-    <resteasy.version>3.0.7.Final</resteasy.version>
-    <trove4j.version>3.0.3</trove4j.version>
-
-    <version.wildfly>8.1.0.Final</version.wildfly>
-    <junit.version>4.8.2</junit.version>
-    <findbugs.version>3.0.0</findbugs.version>
-    <groovy-maven-plugin.version>2.0</groovy-maven-plugin.version>
-    <maven-project-info-reports-plugin.version>2.7</maven-project-info-reports-plugin.version>
-  </properties>
-
+  <name>Hawkular Metrics</name>
+  <description>Hawkular Metrics is a metrics collection, aggregation, visualization framework.</description>
+  <url>http://www.hawkular.org/</url>
+  <inceptionYear>2014</inceptionYear>
   <organization>
     <name>Red Hat, Inc.</name>
     <url>http://redhat.com/</url>
   </organization>
-
-  <scm>
-    <connection>scm:git:ssh://github.com/rhq-project/rhq-metrics</connection>
-    <developerConnection>scm:git:ssh://github.com/rhq-project/rhq-metrics</developerConnection>
-    <url>https://github.com/rhq-project/rhq-metrics</url>
-  </scm>
-
-  <distributionManagement>
-
-    <snapshotRepository>
-      <id>jboss-snapshots-repository</id>
-      <name>JBoss Snapshots Repository</name>
-      <url>https://repository.jboss.org/nexus/content/repositories/snapshots/</url>
-    </snapshotRepository>
-
-    <repository>
-      <id>jboss-releases-repository</id>
-      <name>JBoss Releases Repository</name>
-      <url>https://repository.jboss.org/nexus/service/local/staging/deploy/maven2/</url>
-    </repository>
-
-    <site>
-      <id>local-site-tmp</id>
-      <name>RHQ-metrics</name>
-      <url>file:///tmp/rhq-metrics-site</url>
-    </site>
-
-  </distributionManagement>
-
-  <ciManagement>
-    <system>Travis-ci</system>
-    <url>https://travis-ci.org/rhq-project/rhq-metrics</url>
-  </ciManagement>
-
-  <modules>
-    <module>test-utils</module>
-    <module>core-api</module>
-    <module>metrics-core</module>
-    <module>rest-servlet</module>
-    <module>clients</module>
-    <module>rest-test</module>
-    <module>ui/explorer</module>
-    <module>ui/dummy-ui</module>
-    <module>ui/console</module>
-  </modules>
-
-  <build>
-    <plugins>
-      <plugin>
-        <groupId>org.apache.maven.plugins</groupId>
-        <artifactId>maven-compiler-plugin</artifactId>
-        <version>3.1</version>
-        <configuration>
-          <source>1.7</source>
-          <target>1.7</target>
-          <showWarnings>true</showWarnings>
-        </configuration>
-      </plugin>
-
-      <plugin>
-        <artifactId>maven-surefire-plugin</artifactId>
-        <version>2.17</version>
-      </plugin>
-
-      <plugin>
-        <groupId>org.codehaus.mojo</groupId>
-        <artifactId>findbugs-maven-plugin</artifactId>
-        <version>${findbugs.version}</version>
-      </plugin>
-
-      <plugin>
-        <groupId>org.apache.felix</groupId>
-        <artifactId>maven-bundle-plugin</artifactId>
-        <version>2.5.3</version>
-        <extensions>true</extensions>
-      </plugin>
-
-    </plugins>
-
-    <pluginManagement>
-      <plugins>
-        <plugin>
-          <groupId>org.apache.maven.plugins</groupId>
-          <artifactId>maven-compiler-plugin</artifactId>
-          <version>3.1</version>
-        </plugin>
-      </plugins>
-    </pluginManagement>
-  </build>
-
-  <profiles>
-
-    <profile>
-       <id>test.debug</id>
-       <activation>
-          <property>
-             <name>test.debug</name>
-          </property>
-       </activation>
-
-       <properties>
-          <!-- See: http://maven.apache.org/plugins/maven-surefire-plugin/test-mojo.html#debugForkedProcess -->
-          <maven.surefire.debug>-Xdebug -Xnoagent -Djava.compiler=NONE -Xrunjdwp:transport=dt_socket,address=8797,server=y,suspend=y</maven.surefire.debug>
-       </properties>
-    </profile>
-
-    <profile>
-      <id>download_wildfly</id>
-      <dependencies>
-        <dependency>
-          <groupId>org.wildfly</groupId>
-          <artifactId>wildfly-dist</artifactId>
-          <version>${version.wildfly}</version>
-          <type>zip</type>
-        </dependency>
-      </dependencies>
-    </profile>
-
-    <profile>
-      <id>publish</id>
-
-      <build>
-        <plugins>
-          <plugin>
-            <artifactId>maven-source-plugin</artifactId>
-            <executions>
-              <execution>
-                <id>attach-sources</id>
-                <goals>
-                  <goal>jar</goal>
-                </goals>
-              </execution>
-            </executions>
-          </plugin>
-
-          <plugin>
-            <artifactId>maven-javadoc-plugin</artifactId>
-            <executions>
-              <execution>
-                <id>attach-javadocs</id>
-                <goals>
-                  <goal>jar</goal>
-                </goals>
-              </execution>
-            </executions>
-          </plugin>
-        </plugins>
-      </build>
-    </profile>
-  </profiles>
-
-  <reporting>
-    <plugins>
-      <plugin>
-          <groupId>org.codehaus.mojo</groupId>
-          <artifactId>findbugs-maven-plugin</artifactId>
-          <version>${findbugs.version}</version>
-          <configuration>
-              <xmlOutput>true</xmlOutput>
-              <effort>Max</effort>
-              <threshold>Default</threshold>
-          </configuration>
-          <inherited>true</inherited>
-      </plugin>
-      <plugin>
-        <groupId>org.apache.maven.plugins</groupId>
-        <artifactId>maven-project-info-reports-plugin</artifactId>
-        <version>${maven-project-info-reports-plugin.version}</version>
-        <configuration>
-          <showAvatarImages>true</showAvatarImages>
-        </configuration>
-      </plugin>
-      <plugin>
-        <artifactId>maven-surefire-report-plugin</artifactId>
-        <version>2.6</version>
-      </plugin>
-      <plugin>
-        <!-- must be last plugin in the list -->
-        <groupId>org.codehaus.mojo</groupId>
-        <artifactId>dashboard-maven-plugin</artifactId>
-        <version>1.0.0-beta-1</version>
-      </plugin>
-
-    </plugins>
-
-  </reporting>
-
   <licenses>
     <license>
       <name>Apache License, Version 2.0</name>
@@ -234,7 +46,6 @@
       <distribution>repo</distribution>
     </license>
   </licenses>
-
 
   <developers>
     <developer>
@@ -265,4 +76,272 @@
     </developer>
   </developers>
 
+  <modules>
+    <module>core/metrics-core-api</module>
+    <module>core/metrics-core-impl</module>
+    <module>embedded-cassandra/embedded-cassandra-service</module>
+    <module>embedded-cassandra/embedded-cassandra-ear</module>
+    <module>api/metrics-api-jaxrs</module>
+    <module>rest-tests</module>
+    <module>clients</module>
+    <module>ui/explorer</module>
+  </modules>
+
+  <scm>
+    <connection>scm:git:ssh://github.com/hawkular/hawkular-metrics</connection>
+    <developerConnection>scm:git:ssh://github.com/hawkular/hawkular-metrics</developerConnection>
+    <url>https://github.com/hawkular/hawkular-metrics</url>
+  </scm>
+  <ciManagement>
+    <system>Travis-ci</system>
+    <url>https://travis-ci.org/hawkular/hawkular-metrics</url>
+  </ciManagement>
+
+  <distributionManagement>
+    <site>
+      <id>local-site-tmp</id>
+      <name>Hawkular-metrics</name>
+      <url>file:///tmp/rhq-metrics-site</url>
+    </site>
+  </distributionManagement>
+
+  <properties>
+    <maven.test.skip>${skipTests}</maven.test.skip>
+
+    <test.keyspace>hawkulartest</test.keyspace>
+    <nodes>127.0.0.1</nodes>
+
+    <datastax.driver.version>2.1.2</datastax.driver.version>
+    <joda.time.version>2.3</joda.time.version>
+    <testng.version>6.8.8</testng.version>
+    <slf4j.version>1.7.7</slf4j.version>
+    <log4j.version>1.2.17</log4j.version>
+    <vertx.version>2.1RC3</vertx.version>
+    <vertx.testtools.version>2.0.3-final</vertx.testtools.version>
+    <jackson.version>2.3.2</jackson.version>
+    <trove4j.version>3.0.3</trove4j.version>
+    <google.guava.version>16.0.1</google.guava.version>
+    <antlr.version>4.5</antlr.version>
+    <swagger.version>1.3.12</swagger.version>
+
+    <version.wildfly>8.2.0.Final</version.wildfly>
+    <findbugs.version>3.0.0</findbugs.version>
+
+  </properties>
+
+  <dependencyManagement>
+    <dependencies>
+      <dependency>
+        <groupId>com.google.guava</groupId>
+        <artifactId>guava</artifactId>
+        <version>${google.guava.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>org.antlr</groupId>
+        <artifactId>antlr4-runtime</artifactId>
+        <version>${antlr.version}</version>
+      </dependency>
+      <!-- Tests dependencies -->
+      <dependency>
+        <groupId>org.mockito</groupId>
+        <artifactId>mockito-core</artifactId>
+        <version>1.10.19</version>
+      </dependency>
+      <!-- TestNG is not Hawkular default testing tool -->
+      <!-- While needed to run legacy tests, new tests should be based upon jUnit -->
+      <!-- It can still be used when there's a good reason (compatibility with a testing framework for example) -->
+      <dependency>
+        <groupId>org.testng</groupId>
+        <artifactId>testng</artifactId>
+        <version>${testng.version}</version>
+      </dependency>
+    </dependencies>
+  </dependencyManagement>
+
+  <build>
+    <pluginManagement>
+      <plugins>
+
+        <!-- Conventions:
+          * all org.apache.* plugins are managed in hawkular-parent
+          * before adding new plugins here
+            * look first to hawkular-parent
+            * or consider adding the plugin to hawkular-parent
+        -->
+
+        <plugin>
+          <groupId>org.antlr</groupId>
+          <artifactId>antlr4-maven-plugin</artifactId>
+          <version>${antlr.version}</version>
+        </plugin>
+
+        <plugin>
+          <groupId>org.codehaus.mojo</groupId>
+          <artifactId>animal-sniffer-maven-plugin</artifactId>
+          <version>1.11</version>
+        </plugin>
+
+        <plugin>
+          <groupId>org.wildfly.plugins</groupId>
+          <artifactId>wildfly-maven-plugin</artifactId>
+          <version>1.1.0.Alpha1</version>
+          <configuration>
+            <version>${version.wildfly}</version>
+          </configuration>
+        </plugin>
+
+      </plugins>
+    </pluginManagement>
+
+    <plugins>
+
+      <plugin>
+        <groupId>org.codehaus.mojo</groupId>
+        <artifactId>animal-sniffer-maven-plugin</artifactId>
+        <!-- This depedency upgrade is a workaround for MANIMALSNIFFER-45 -->
+        <!-- MANIMALSNIFFER-45 only affects users building with a JDK 8 -->
+        <!-- It can be removed once MANIMALSNIFFER-45 is fixed -->
+        <!-- See https://jira.codehaus.org/browse/MANIMALSNIFFER-45 -->
+        <dependencies>
+          <dependency>
+            <groupId>org.ow2.asm</groupId>
+            <artifactId>asm-all</artifactId>
+            <version>5.0.3</version>
+          </dependency>
+        </dependencies>
+        <!-- Copy paste and uncomment the following block in sub-projects where Java 7 compatibility is required -->
+        <!--<executions>-->
+          <!--<execution>-->
+            <!--<id>java-api-check</id>-->
+            <!--<configuration>-->
+              <!--<signature>-->
+                <!--<groupId>org.codehaus.mojo.signature</groupId>-->
+                <!--<artifactId>java17</artifactId>-->
+                <!--<version>1.0</version>-->
+              <!--</signature>-->
+            <!--</configuration>-->
+            <!--<phase>verify</phase>-->
+            <!--<goals>-->
+              <!--<goal>check</goal>-->
+            <!--</goals>-->
+          <!--</execution>-->
+        <!--</executions>-->
+      </plugin>
+
+      <plugin>
+        <groupId>org.codehaus.mojo</groupId>
+        <artifactId>findbugs-maven-plugin</artifactId>
+        <version>${findbugs.version}</version>
+      </plugin>
+
+      <plugin>
+        <groupId>org.apache.felix</groupId>
+        <artifactId>maven-bundle-plugin</artifactId>
+        <version>2.5.3</version>
+        <extensions>true</extensions>
+      </plugin>
+
+      <plugin>
+        <groupId>com.mycila</groupId>
+        <artifactId>license-maven-plugin</artifactId>
+        <configuration>
+          <excludes combine.children="append">
+            <!-- Ignore Coverity files (useful on Travis) -->
+            <exclude>cov-int/**</exclude>
+            <exclude>analysis-results.tgz</exclude>
+          </excludes>
+        </configuration>
+      </plugin>
+
+    </plugins>
+  </build>
+
+  <reporting>
+    <plugins>
+      <plugin>
+        <groupId>org.codehaus.mojo</groupId>
+        <artifactId>findbugs-maven-plugin</artifactId>
+        <version>${findbugs.version}</version>
+        <configuration>
+          <xmlOutput>true</xmlOutput>
+          <effort>Max</effort>
+          <threshold>Default</threshold>
+        </configuration>
+        <inherited>true</inherited>
+      </plugin>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-project-info-reports-plugin</artifactId>
+        <version>2.7</version>
+        <configuration>
+          <showAvatarImages>true</showAvatarImages>
+        </configuration>
+      </plugin>
+      <plugin>
+        <artifactId>maven-surefire-report-plugin</artifactId>
+        <version>2.6</version>
+      </plugin>
+      <plugin>
+        <!-- must be last plugin in the list -->
+        <groupId>org.codehaus.mojo</groupId>
+        <artifactId>dashboard-maven-plugin</artifactId>
+        <version>1.0.0-beta-1</version>
+      </plugin>
+
+    </plugins>
+
+  </reporting>
+
+  <profiles>
+
+    <!-- Note that the test.debug profile has moved to hawkular-parent -->
+
+    <profile>
+      <id>download_wildfly</id>
+      <dependencies>
+        <dependency>
+          <groupId>org.wildfly</groupId>
+          <artifactId>wildfly-dist</artifactId>
+          <version>${version.wildfly}</version>
+          <type>zip</type>
+        </dependency>
+      </dependencies>
+    </profile>
+
+    <profile>
+      <id>publish</id>
+
+      <build>
+        <plugins>
+          <plugin>
+            <groupId>org.apache.maven.plugins</groupId>
+            <artifactId>maven-source-plugin</artifactId>
+            <executions>
+              <execution>
+                <id>attach-sources</id>
+                <goals>
+                  <goal>jar</goal>
+                </goals>
+              </execution>
+            </executions>
+          </plugin>
+
+          <plugin>
+            <groupId>org.apache.maven.plugins</groupId>
+            <artifactId>maven-javadoc-plugin</artifactId>
+            <executions>
+              <execution>
+                <id>attach-javadocs</id>
+                <goals>
+                  <goal>jar</goal>
+                </goals>
+              </execution>
+            </executions>
+          </plugin>
+        </plugins>
+      </build>
+    </profile>
+  </profiles>
 </project>
+
+

@@ -1,6 +1,0 @@
-{
-  "cluster": "rhq",
-  "nodes": ["127.0.0.1"],
-  "cqlPort": 9042,
-  "httpPort": 7474
-}

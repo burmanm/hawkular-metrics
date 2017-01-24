@@ -1,22 +1,39 @@
 #!/bin/sh
+#
+# Copyright 2014-2015 Red Hat, Inc. and/or its affiliates
+# and other contributors as indicated by the @author tags.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
 
 
-VERSION=`grep version pom.xml | sed -n '3,3p' | sed -E 's/^.*n>(.*)<.*$/\1/' `
+# set -x
 
 echo "(Re)building the commons library"
 cd ../common
 mvn install
+if [ $? -ne 0 ]
+then
+   cd -
+   exit 1;
+fi
 cd -
 
 echo "(Re)building ptrans"
 mvn install
+if [ $? -ne 0 ]
+then
+   exit 1;
+fi
 
-java -Djava.net.preferIPv4Stack=true \
-   -cp ${HOME}/.m2/repository/io/netty/netty-all/4.0.20.Final/netty-all-4.0.20.Final.jar\
-:target/ptrans-$VERSION.jar\
-:../common/target/clients-common-$VERSION.jar\
-:${HOME}/.m2/repository/org/slf4j/slf4j-log4j12/1.7.7/slf4j-log4j12-1.7.7.jar\
-:${HOME}/.m2/repository/org/slf4j/slf4j-api/1.7.7/slf4j-api-1.7.7.jar\
-:${HOME}/.m2/repository/log4j/log4j/1.2.17/log4j-1.2.17.jar\
-:${HOME}/.m2/repository/org/acplt/oncrpc/1.0.7/oncrpc-1.0.7.jar\
- org.rhq.metrics.clients.ptrans.Main $*
+java -Djava.net.preferIPv4Stack=true -Dlog4j.configuration=file:log4j-dev.xml -jar target/ptrans-all.jar $*

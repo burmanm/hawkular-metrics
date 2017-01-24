@@ -1,27 +1,65 @@
-/// <reference path="../../vendor/vendor.d.ts" />
+///
+/// Copyright 2014-2015 Red Hat, Inc. and/or its affiliates
+/// and other contributors as indicated by the @author tags.
+///
+/// Licensed under the Apache License, Version 2.0 (the "License");
+/// you may not use this file except in compliance with the License.
+/// You may obtain a copy of the License at
+///
+///    http://www.apache.org/licenses/LICENSE-2.0
+///
+/// Unless required by applicable law or agreed to in writing, software
+/// distributed under the License is distributed on an "AS IS" BASIS,
+/// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+/// See the License for the specific language governing permissions and
+/// limitations under the License.
+///
 
+/// <reference path="../../vendor/vendor.d.ts" />
 module Services {
     'use strict';
 
+    export interface IMetricDataService {
+        getBaseUrl():string;
+        getAllMetrics();
+        getMetricsForTimeRange(id:string, startDate:Date, endDate:Date, buckets:number):ng.IPromise<any> ;
+        insertMultiplePayload(jsonPayload):ng.IPromise<any> ;
 
-    export class MetricDataService {
+    }
 
-        public static  $inject = ['$q', '$rootScope', '$http', '$log', '$localStorage', 'BASE_URL' ];
+    export class MetricDataService implements IMetricDataService {
 
-        constructor(private $q:ng.IQService, private $rootScope:ng.IRootScopeService, private $http:ng.IHttpService, private $log:ng.ILogService, public $localStorage:any, private BASE_URL:string) {
+        public static  $inject = ['$q', '$rootScope', '$http', '$localStorage', 'BASE_URL', 'TENANT_ID'];
+
+        constructor(private $q:ng.IQService, private $rootScope:ng.IRootScopeService, private $http:ng.IHttpService,  public $localStorage:any, private BASE_URL:string, private TENANT_ID:string) {
 
         }
 
-        private makeBaseUrl():string {
-            var baseUrl = 'http://' + this.$rootScope.$storage.server + ':' + this.$rootScope.$storage.port + this.BASE_URL;
-            return baseUrl;
+        getBaseUrl():string {
+            return 'http://' + this.$rootScope.$storage.server.replace(/['"]+/g, '') + ':' + this.$rootScope.$storage.port + this.BASE_URL + '/'+this.TENANT_ID +'/metrics';
         }
 
-        getMetricsForTimeRange(id:string, startDate:Date, endDate:Date, buckets:number):any {
-            this.$log.info("-- Retrieving metrics data for id: " + id);
-            this.$log.info("-- Date Range: " + startDate + " - " + endDate);
+        getAllMetrics() {
+            console.info('-- Retrieving all metrics');
+            var base = this.getBaseUrl()+'/?type=num',
+                deferred = this.$q.defer();
+
+            this.$http.get(base).success((data) => {
+                deferred.resolve(data);
+            }).error((reason, status) => {
+                console.error('Error Retrieving all metrics :' + status + ", " + reason);
+                toastr.warning('No Metrics retrieved.');
+                deferred.reject(status + " - " + reason);
+            });
+
+            return deferred.promise;
+        }
+
+
+        getMetricsForTimeRange(id:string, startDate:Date, endDate:Date, buckets:number):ng.IPromise<any> {
+            console.info('-- Retrieving metrics data for id: ' + id);
+            console.info('-- Date Range: ' + startDate + ' - ' + endDate);
             var numBuckets = buckets || 60,
-                base = this.makeBaseUrl(),
                 deferred = this.$q.defer(),
                 searchParams =
                 {
@@ -33,40 +71,26 @@ module Services {
                 };
 
             if (startDate >= endDate) {
-                this.$log.warn("Start date was after end date");
+                console.warn("Start date was after end date");
                 deferred.reject("Start date was after end date");
             }
 
-            this.$http.get(base + '/' + id, searchParams).success(function (data) {
+            this.$http.get(this.getBaseUrl() + '/numeric/' + id+'/data', searchParams).success((data) => {
                 deferred.resolve(data);
-            }).error(function (reason, status) {
-                this.$log.error('Error Loading Chart Data:' + status + ", " + reason);
+            }).error((reason, status) => {
+                console.error('Error Loading Chart Data:' + status + ", " + reason);
                 deferred.reject(status + " - " + reason);
             });
 
             return deferred.promise;
         }
 
-        insertSinglePayload(id, jsonPayload):any {
-            var url = this.makeBaseUrl(),
-                deferred = this.$q.defer();
-            this.$http.post(url + '/' + id, jsonPayload
-            ).success(function () {
+        insertMultiplePayload(jsonPayload):ng.IPromise<any> {
+            var deferred = this.$q.defer();
+            this.$http.post(this.getBaseUrl() + '/numeric/data', jsonPayload
+            ).success(() => {
                     deferred.resolve("Success");
-                }).error(function (response, status) {
-                    console.error("Error: " + status + " --> " + response);
-                    deferred.reject(status);
-                });
-            return deferred.promise;
-        }
-
-        insertMultiplePayload(jsonPayload):any {
-            var url = this.makeBaseUrl(),
-                deferred = this.$q.defer();
-            this.$http.post(url + '/', jsonPayload
-            ).success(function () {
-                    deferred.resolve("Success");
-                }).error(function (response, status) {
+                }).error((response, status) => {
                     console.error("Error: " + status + " --> " + response);
                     deferred.reject(status);
                 });
