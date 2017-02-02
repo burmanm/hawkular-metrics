@@ -33,6 +33,7 @@ public class SingleMetricConverter {
             case COUNTER:
                 jsonObject.put("type", "counter")
                         .put("value", singleMetric.getValue().longValue());
+                break;
             default:
                 // Process anything else as a gauge
                 jsonObject.put("type", "gauge")
