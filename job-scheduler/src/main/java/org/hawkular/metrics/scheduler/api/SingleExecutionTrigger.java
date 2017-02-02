@@ -60,7 +60,6 @@ public class SingleExecutionTrigger implements Trigger {
             if (triggerTime != null) {
                 this.triggerTime = getTimeSlice(triggerTime, standardMinutes(1));
             } else {
-                long actualDelay = delay == null ? Minutes.ONE.toStandardDuration().getMillis() : delay;
                 this.triggerTime = getTimeSlice(now.get().getMillis() + delay, standardMinutes(1));
             }
         }
