@@ -22,6 +22,7 @@ import static java.util.stream.Collectors.toMap;
 import static org.hawkular.metrics.core.service.TimeUUIDUtils.getTimeUUID;
 import static org.hawkular.metrics.model.MetricType.STRING;
 
+import java.net.InetSocketAddress;
 import java.nio.ByteBuffer;
 import java.time.Instant;
 import java.time.LocalDateTime;
@@ -39,7 +40,9 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.SortedMap;
 import java.util.concurrent.ConcurrentSkipListMap;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.BiConsumer;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -81,11 +84,14 @@ import com.datastax.driver.core.TableMetadata;
 import com.datastax.driver.core.Token;
 import com.datastax.driver.core.TokenRange;
 import com.datastax.driver.core.UserType;
+import com.datastax.driver.core.exceptions.BusyPoolException;
 import com.datastax.driver.core.exceptions.DriverException;
+import com.datastax.driver.core.exceptions.NoHostAvailableException;
 import com.datastax.driver.core.policies.LoadBalancingPolicy;
 
 import rx.Observable;
 import rx.exceptions.Exceptions;
+import rx.functions.Func1;
 import rx.schedulers.Schedulers;
 
 /**
@@ -891,6 +897,8 @@ public class DataAccessImpl implements DataAccess {
                 .distinct();
     }
 
+    private AtomicInteger errorInt = new AtomicInteger(0);
+
     /*
      * Applies micro-batching capabilities by taking advantage of token ranges in the Cassandra
      */
@@ -911,6 +919,14 @@ public class DataAccessImpl implements DataAccess {
                 .flatMap(g -> g.compose(new BoundBatchStatementTransformer()))
                 .flatMap(batch -> rxSession
                         .execute(batch)
+//                        .retryWhen(new Func1<Observable<? extends Throwable>, Observable<?>>() {
+//                            @Override public Observable<?> call(Observable<? extends Throwable> observable) {
+//                                System.err.printf("Errors: %d\n", errorInt.incrementAndGet());
+//                                return Observable.just(1);
+//                            }
+//                        })
+//                        .retry()
+//                        .doOnError(Throwable::printStackTrace)
                         .compose(applyWriteRetryPolicy("Failed to insert batch of data points"))
                         .map(resultSet -> batch.size())
                 );
@@ -922,21 +938,45 @@ public class DataAccessImpl implements DataAccess {
     private <T> Observable.Transformer<T, T> applyWriteRetryPolicy(String msg) {
         return tObservable -> tObservable
                 .retryWhen(errors -> {
-                    Observable<Integer> range = Observable.range(1, 2);
+                    System.err.printf("Errors: %d\n", errorInt.incrementAndGet());
+                    Observable<Integer> range = Observable.range(1, 20);
                     return errors
                             .zipWith(range, (t, i) -> {
+                                if(t instanceof ExecutionException) {
+                                    if(t.getCause() != null && t.getCause() instanceof NoHostAvailableException) {
+                                        NoHostAvailableException noHostE = (NoHostAvailableException) t.getCause();
+                                        Map<InetSocketAddress, Throwable> hostErrors = noHostE.getErrors();
+                                        for (Throwable throwable : hostErrors.values()) {
+                                            if(throwable instanceof BusyPoolException) {
+                                                int inFlightQueries = session.getState().getInFlightQueries(
+                                                        session.getState().getConnectedHosts().iterator().next());
+
+
+                                                log.errorf("Found a busypoolException! %d openConnections, " +
+                                                                "inFlight->%d: %s",
+                                                        session.getCluster().getMetrics().getOpenConnections().getValue(),
+                                                        inFlightQueries,
+                                                        throwable.getClass());
+                                                return i;
+                                            }
+                                        }
+                                    }
+                                }
                                 if (t instanceof DriverException) {
                                     return i;
                                 }
                                 throw Exceptions.propagate(t);
                             })
+                            .doOnError(Throwable::printStackTrace)
                             .flatMap(retryCount -> {
-                                long delay = (long) Math.min(Math.pow(2, retryCount) * 1000, 3000);
+                                long delay = (long) Math.min(Math.pow(2, retryCount*5) * 1000, 3000);
                                 log.debug(msg);
                                 log.debugf("Retrying batch insert in %d ms", delay);
                                 return Observable.timer(delay, TimeUnit.MILLISECONDS);
-                            });
-                });
+                            })
+                            .doOnError(Throwable::printStackTrace);
+                })
+                .doOnError(Throwable::printStackTrace);
     }
 
     Long tableToMapKey(String tableName) {
@@ -1306,13 +1346,12 @@ public class DataAccessImpl implements DataAccess {
                     }
                 });
 
-        BiConsumer<BoundStatement, Integer> mapper = (b, i) -> {
-            b.setString(i, id.getTenantId())
-                    .setByte(i+1, id.getType().getCode())
-                    .setString(i+2, id.getName())
-                    .setLong(i+3, DPART)
-                    .setTimestamp(i+4, new Date(timeslice));
-        };
+        BiConsumer<BoundStatement, Integer> mapper = (b, i) -> b
+                .setString(i, id.getTenantId())
+                .setByte(i+1, id.getType().getCode())
+                .setString(i+2, id.getName())
+                .setLong(i+3, DPART)
+                .setTimestamp(i+4, new Date(timeslice));
 
         BoundStatement b;
         int i = 0;

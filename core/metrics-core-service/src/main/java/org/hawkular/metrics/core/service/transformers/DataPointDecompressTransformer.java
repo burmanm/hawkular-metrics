@@ -86,7 +86,7 @@ public class DataPointDecompressTransformer<T> implements Observable.Transformer
                         Pair pair;
                         while ((pair = d.readPair()) != null) {
                             if (pair.getTimestamp() >= start && pair.getTimestamp() < end) {
-                                DataPoint<T> dataPoint = null;
+                                DataPoint<T> dataPoint;
 
                                 switch(metricType.getCode()) {
                                     case 0: // GAUGE

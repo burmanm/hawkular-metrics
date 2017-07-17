@@ -514,7 +514,7 @@ public class MetricsServiceImpl implements MetricsService {
     @SuppressWarnings("unchecked")
     @Override
     public <T> Observable<Metric<T>> findMetrics(String tenantId, MetricType<T> metricType) {
-        Observable<Metric<T>> setFromMetricsIndex = null;
+        Observable<Metric<T>> setFromMetricsIndex;
         Observable<Metric<T>> setFromData = dataAccess.findAllMetricsInData()
                 .doOnError(Throwable::printStackTrace)
                 .filter(row -> tenantId.equals(row.getString(0)))
@@ -534,7 +534,7 @@ public class MetricsServiceImpl implements MetricsService {
             setFromData = setFromData.filter(m -> metricType.equals(m.getMetricId().getType()));
         }
 
-        return setFromMetricsIndex.concatWith(setFromData).distinct(m -> m.getMetricId());
+        return setFromMetricsIndex.concatWith(setFromData).distinct(Metric::getMetricId);
     }
 
     @SuppressWarnings("unchecked")
@@ -925,17 +925,13 @@ public class MetricsServiceImpl implements MetricsService {
         } else {
             Observable<Observable<NumericBucketPoint>> individualStats;
             if (!isRate) {
-                individualStats = Observable.from(metrics).map(metricId -> {
-                    return findDataPoints(metricId, start, end, 0, Order.DESC)
-                            .compose(new NumericBucketPointTransformer(buckets, percentiles))
-                            .flatMap(Observable::from);
-                });
+                individualStats = Observable.from(metrics).map(metricId -> findDataPoints(metricId, start, end, 0, Order.DESC)
+                        .compose(new NumericBucketPointTransformer(buckets, percentiles))
+                        .flatMap(Observable::from));
             } else {
-                individualStats = Observable.from(metrics).map(metricId -> {
-                    return findRateData(metricId, start, end, 0, ASC)
-                            .compose(new NumericBucketPointTransformer(buckets, percentiles))
-                            .flatMap(Observable::from);
-                });
+                individualStats = Observable.from(metrics).map(metricId -> findRateData(metricId, start, end, 0, ASC)
+                        .compose(new NumericBucketPointTransformer(buckets, percentiles))
+                        .flatMap(Observable::from));
             }
 
             return Observable.merge(individualStats)

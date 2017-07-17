@@ -61,7 +61,7 @@ public final class SortedMerge<T> implements OnSubscribe<T> {
 
     public static <U extends Comparable<? super U>> Observable<U> create(
             Collection<Observable<? extends U>> sources, boolean delayErrors) {
-        return Observable.create(new SortedMerge<>(sources, (o1, o2) -> o1.compareTo(o2), delayErrors));
+        return Observable.create(new SortedMerge<>(sources, Comparator.naturalOrder(), delayErrors));
     }
 
     public static <U> Observable<U> create(

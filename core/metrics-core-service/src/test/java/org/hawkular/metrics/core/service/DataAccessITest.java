@@ -26,8 +26,17 @@ import static org.joda.time.DateTime.now;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 
+import java.net.InetSocketAddress;
+import java.util.Date;
 import java.util.List;
+import java.util.Map;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.BiConsumer;
+import java.util.function.BiFunction;
+import java.util.function.Consumer;
+import java.util.function.Function;
 
 import org.hawkular.metrics.core.service.transformers.MetricFromFullDataRowTransformer;
 import org.hawkular.metrics.model.AvailabilityType;
@@ -42,12 +51,22 @@ import org.testng.annotations.BeforeClass;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
+import com.datastax.driver.core.BoundStatement;
 import com.datastax.driver.core.PreparedStatement;
 import com.datastax.driver.core.ResultSet;
+import com.datastax.driver.core.ResultSetFuture;
 import com.datastax.driver.core.Row;
+import com.datastax.driver.core.Session;
 import com.datastax.driver.core.TableMetadata;
+import com.datastax.driver.core.TupleType;
+import com.datastax.driver.core.TupleValue;
+import com.datastax.driver.core.exceptions.BusyPoolException;
+import com.datastax.driver.core.exceptions.NoHostAvailableException;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
+import com.google.common.util.concurrent.FutureCallback;
+import com.google.common.util.concurrent.Futures;
+import com.google.common.util.concurrent.ListenableFuture;
 
 import rx.Emitter;
 import rx.Observable;
@@ -233,8 +252,8 @@ public class DataAccessITest extends BaseITest {
         String tenantId = "t1";
         long start = now().getMillis();
 
-        int amountOfMetrics = 1000;
-        int datapointsPerMetric = 10;
+        int amountOfMetrics = 1000000;
+        int datapointsPerMetric = 2;
 
         for (int j = 0; j < datapointsPerMetric; j++) {
             final int dpAdd = j;
@@ -269,6 +288,37 @@ public class DataAccessITest extends BaseITest {
         tsr.assertValueCount(amountOfMetrics * datapointsPerMetric);
     }
 
+    @Test
+    public void testTokenRangeQueryLoad() throws Exception {
+        String tenantId = "t1";
+        long start = now().getMillis();
+
+        int amountOfMetrics = 1_000_000;
+        int datapointsPerMetric = 2;
+
+        for (int j = 0; j < datapointsPerMetric; j++) {
+            final int dpAdd = j;
+            Observable<Metric<Double>> metrics = Observable.create(emitter -> {
+                for (int i = 0; i < amountOfMetrics; i++) {
+                    String metricName = String.format("m%d", i);
+                    MetricId<Double> mId = new MetricId<>(tenantId, GAUGE, metricName);
+                    emitter.onNext(new Metric<>(mId, asList(new DataPoint<>(start + dpAdd, 1.1))));
+                }
+                emitter.onCompleted();
+            }, Emitter.BackpressureMode.BUFFER);
+
+            TestSubscriber<Integer> subscriber = new TestSubscriber<>();
+            Observable<Integer> observable = dataAccess.insertData(metrics);
+            observable.subscribe(subscriber);
+            subscriber.awaitTerminalEvent(2, TimeUnit.MINUTES); // For Travis..
+            for (Throwable throwable : subscriber.getOnErrorEvents()) {
+                throwable.printStackTrace();
+            }
+            subscriber.assertNoErrors();
+            subscriber.assertCompleted();
+        }
+//        int expectedSize = session.getCluster().getMetadata().getAllHosts().size();
+    }
 //    @Test
 //    public void testBucketIndexes() throws Exception {
 //        ZonedDateTime of = ZonedDateTime.of(2017, 1, 1, 0, 0, 0, 0, ZoneOffset.UTC);

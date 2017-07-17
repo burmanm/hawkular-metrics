@@ -67,8 +67,6 @@ public class Functions {
     private Functions() {
     }
 
-    public static final Function<List<ResultSet>, Void> TO_VOID = resultSets -> null;
-
     public static DataPoint<Double> getGaugeDataPoint(Row row) {
         return new DataPoint<>(
                 UUIDs.unixTimestamp(row.getUUID(GAUGE_COLS.TIME.ordinal())),
@@ -128,9 +126,7 @@ public class Functions {
 
     public static <S> Observable<Metric<S>> metricToObservable(
             String tenantId, List<Metric<S>> metrics, MetricType<S> type) {
-        return Observable.from(metrics).map(g -> {
-            return new Metric<>(new MetricId<>(tenantId, type, g.getMetricId().getName()), g.getDataPoints());
-        });
+        return Observable.from(metrics).map(g -> new Metric<>(new MetricId<>(tenantId, type, g.getMetricId().getName()), g.getDataPoints()));
     }
 
     public static <T> Observable<Metric<T>> dataPointToObservable(String tenantId, String metricId,

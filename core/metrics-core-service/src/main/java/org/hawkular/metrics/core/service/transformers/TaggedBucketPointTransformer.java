@@ -55,10 +55,8 @@ public class TaggedBucketPointTransformer
         for (Entry<String, String> entry : tags.entrySet()) {
             boolean positive = (!entry.getValue().startsWith("!"));
             Pattern pattern = filterPattern(entry.getValue());
-            filter = filter.and(dataPoint -> {
-                return dataPoint.getTags().containsKey(entry.getKey()) &&
-                        (positive == pattern.matcher(dataPoint.getTags().get(entry.getKey())).matches());
-            });
+            filter = filter.and(dataPoint -> dataPoint.getTags().containsKey(entry.getKey()) &&
+                    (positive == pattern.matcher(dataPoint.getTags().get(entry.getKey())).matches()));
         }
         return dataPoints
                 .filter(filter::test)

@@ -124,7 +124,7 @@ public interface MetricsService {
      *
      * @param tenantId The id of the tenant to which the metrics belong
      * @param type If type is null, no type filtering is used
-     * @param tagsQuery If tagsQueries is empty, empty Observable is returned, use findMetrics(tenantId, type) instead
+     * @param tags If tagsQueries is empty, empty Observable is returned, use findMetrics(tenantId, type) instead
      * @return Metric's that are filtered with given conditions
      */
     <T> Observable<Metric<T>> findMetricsWithFilters(String tenantId, MetricType<T> type, String tags);
