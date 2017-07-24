@@ -20,6 +20,8 @@ import java.util.Date;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.BiConsumer;
 import java.util.function.BiFunction;
+import java.util.function.IntBinaryOperator;
+import java.util.function.IntUnaryOperator;
 
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
@@ -35,6 +37,8 @@ import com.datastax.driver.core.Session;
 import com.google.common.util.concurrent.FutureCallback;
 import com.google.common.util.concurrent.Futures;
 
+import io.netty.util.NettyRuntime;
+
 /**
  * @author michael
  */
@@ -42,8 +46,19 @@ public class DriverTortureTest {
     static final private AtomicInteger batches = new AtomicInteger(40_000);
     static final private AtomicInteger done = new AtomicInteger(2_000_000);
     static final private AtomicInteger errors = new AtomicInteger(0);
+    static final private AtomicInteger inFlight = new AtomicInteger(0);
+    static final private AtomicInteger retries = new AtomicInteger(0);
 
     private Session session;
+
+    private static String TORTURE_TABLE = "CREATE TABLE IF NOT EXISTS driver_torture ( " +
+            "tenant_id text, " +
+            "type tinyint, " +
+            "metric text, " +
+            "time timestamp, " +
+            "n_value double, " +
+            "PRIMARY KEY ((tenant_id, type, metric), time)" +
+            ") WITH CLUSTERING ORDER BY (time DESC)";
 
     @BeforeClass
     public void setup() {
@@ -54,7 +69,8 @@ public class DriverTortureTest {
                 .build();
         session = cluster.connect();
         session.execute("USE hawkulartest");
-        session.execute("TRUNCATE data_temp_2017071410");
+        session.execute(TORTURE_TABLE);
+        session.execute("TRUNCATE driver_torture");
     }
 
     static class MetricSubmitCall {
@@ -81,39 +97,40 @@ public class DriverTortureTest {
         return insertB;
     };
 
-
     static BiConsumer<BoundStatement, Session> submitMetric = (insertB, session) -> {
-        ResultSetFuture insertFuture = session.executeAsync(insertB);
 
-        Futures.addCallback(insertFuture, new FutureCallback<ResultSet>() {
-            @Override public void onSuccess(ResultSet rows) {
-                // Not interested in the return value
-                done.decrementAndGet();
-            }
+        while(true) {
+//            if (inFlight.getAndAccumulate(1, (i, i2) -> i < 1024 ? i + i2 : i) < 1024) {
+            if(session.getState().getInFlightQueries(session.getState().getConnectedHosts().iterator().next()) < 1024) {
+                ResultSetFuture insertFuture = session.executeAsync(insertB);
 
-            @Override public void onFailure(Throwable t) {
-//                if(t.getCause() != null && t.getCause() instanceof NoHostAvailableException) {
-//                    NoHostAvailableException noHostE = (NoHostAvailableException) t.getCause();
-//                    Map<InetSocketAddress, Throwable> hostErrors = noHostE.getErrors();
-//                    for (Throwable throwable : hostErrors.values()) {
-//                        if (throwable instanceof BusyPoolException) {
-//                            System.out.printf("BusyPool!");
-//                            try {
-//                                Thread.sleep(100);
-//                            } catch (InterruptedException e) {
-//                                //
-//                            }
-                errors.incrementAndGet();
-                submitMetric.accept(insertB, session);
-//                        }
-//                    }
-//                }
+                Futures.addCallback(insertFuture, new FutureCallback<ResultSet>() {
+                    @Override public void onSuccess(ResultSet rows) {
+                        // Not interested in the return value
+                        done.decrementAndGet();
+                        inFlight.decrementAndGet();
+                    }
+
+                    @Override public void onFailure(Throwable t) {
+                        inFlight.decrementAndGet();
+                        errors.incrementAndGet();
+                        submitMetric.accept(insertB, session);
+                    }
+                });
+                break;
+            } else {
+                retries.incrementAndGet();
+                try {
+                    Thread.sleep(0, 1);
+                } catch (InterruptedException e) {
+//                    e.printStackTrace();
+                }
             }
-        });
+        }
     };
 
-
     static BiConsumer<BatchStatement, Session> submitBatch = (insertB, session) -> {
+
         ResultSetFuture insertFuture = session.executeAsync(insertB);
 
         Futures.addCallback(insertFuture, new FutureCallback<ResultSet>() {
@@ -124,17 +141,12 @@ public class DriverTortureTest {
 
             @Override public void onFailure(Throwable t) {
                 errors.incrementAndGet();
-                try {
-                    Thread.sleep(200);
-                } catch (InterruptedException e) {
-                    e.printStackTrace();
-                }
                 submitBatch.accept(insertB, session);
             }
         });
     };
 
-//    @Test
+    @Test
     public void driverTest() throws Exception {
 
         long start = System.currentTimeMillis();
@@ -143,35 +155,36 @@ public class DriverTortureTest {
         int datapointsPerMetric = 2;
 //        done = new AtomicInteger(amountOfMetrics * datapointsPerMetric);
 
-        PreparedStatement insert = session.prepare("UPDATE data_temp_2017071410 " +
+        PreparedStatement insert = session.prepare("UPDATE driver_torture " +
                 "SET n_value = ? " +
                 "WHERE tenant_id = ? AND type = ? AND metric = ? AND time = ? ");
 
         for (int j = 0; j < datapointsPerMetric; j++) {
-            BatchStatement batch = new BatchStatement(BatchStatement.Type.UNLOGGED);
+//            BatchStatement batch = new BatchStatement(BatchStatement.Type.UNLOGGED);
             for (int i = 0; i < amountOfMetrics; i++) {
                 final int jF = j;
                 final int iF = i;
 
-                batch.add(createStatement.apply(new DriverTortureTest.MetricSubmitCall(iF, jF, start), insert));
-                if(i % 50 == 0) {
-                    submitBatch.accept(batch, session);
-                    batch = new BatchStatement(BatchStatement.Type.UNLOGGED);
-                }
+//                batch.add(createStatement.apply(new DriverTortureTest.MetricSubmitCall(iF, jF, start), insert));
+//                if(i % 50 == 0) {
+//                    submitBatch.accept(batch, session);
+//                    batch = new BatchStatement(BatchStatement.Type.UNLOGGED);
+//                }
 
-//                BoundStatement bs = createStatement.apply(new DriverTortureTest.MetricSubmitCall(iF, jF, start), insert);
-//                submitMetric.accept(bs, session);
+                BoundStatement bs = createStatement.apply(new DriverTortureTest.MetricSubmitCall(iF, jF, start), insert);
+                submitMetric.accept(bs, session);
             }
-            submitBatch.accept(batch, session);
+//            submitBatch.accept(batch, session);
         }
-        while(batches.get() > 0) {
-            System.out.printf("Waiting...\n");
-            Thread.sleep(1000);
-        }
-//        while(done.get() > 0) {
-//            System.out.printf("Waiting...");
+//        while(batches.get() > 0) {
+//            System.out.printf("Waiting...\n");
 //            Thread.sleep(1000);
 //        }
-        System.out.printf("Retries: %d\n", errors.get());
+        while(done.get() > 0) {
+            System.out.printf("Waiting...");
+            Thread.sleep(1000);
+        }
+        System.out.printf("Errors: %d\n", errors.get());
+        System.out.printf("Retries: %d\n", retries.get());
     }
 }
