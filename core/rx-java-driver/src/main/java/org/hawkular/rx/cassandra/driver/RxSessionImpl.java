@@ -29,15 +29,20 @@ import com.datastax.driver.core.Row;
 import com.datastax.driver.core.Session;
 import com.datastax.driver.core.SimpleStatement;
 import com.datastax.driver.core.Statement;
+import com.google.common.util.concurrent.FutureCallback;
+import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
 
+import rx.Emitter;
 import rx.Observable;
 import rx.Scheduler;
-import rx.observable.ListenableFutureObservable;
 import rx.schedulers.Schedulers;
 
 /**
+ * See {@link RxSession} for documentation of the methods.
+ *
  * @author jsanda
+ * @author Michael Burman
  */
 public class RxSessionImpl implements RxSession {
 
@@ -68,18 +73,51 @@ public class RxSessionImpl implements RxSession {
     };
 
     private Observable<ResultSet> scheduleStatement(Statement st, Scheduler scheduler) {
-        while(true) {
-            if(mostInFlightRequests.apply(session) < MAXIMUM_INFLIGHT_REQUESTS) {
-                ResultSetFuture future = session.executeAsync(st);
-                return ListenableFutureObservable.from(future, scheduler);
-            } else {
-                try {
-                    Thread.sleep(0, 1);
-                } catch (InterruptedException e) {
-                    //
+        Observable<ResultSet> rsObservable = Observable.create(resultSetEmitter -> {
+            while (true) {
+                if (mostInFlightRequests.apply(session) < MAXIMUM_INFLIGHT_REQUESTS) {
+                    ResultSetFuture future = session.executeAsync(st);
+                    Futures.addCallback(future, new FutureCallback<ResultSet>() {
+                        @Override public void onSuccess(ResultSet rows) {
+                            resultSetEmitter.onNext(rows);
+                            resultSetEmitter.onCompleted();
+                        }
+
+                        @Override public void onFailure(Throwable throwable) {
+                            // Retry
+                            resultSetEmitter.onError(throwable);
+                        }
+                    });
+                } else {
+                    try {
+                        Thread.sleep(0, 1);
+                    } catch (InterruptedException e) {
+                        //
+                    }
                 }
             }
-        }
+        }, Emitter.BackpressureMode.ERROR);
+
+        return rsObservable.subscribeOn(scheduler);
+    }
+
+    private Observable<PreparedStatement> schedulePrepare(RegularStatement st, Scheduler scheduler) {
+        Observable<PreparedStatement> psObservable = Observable.create(psEmitter -> {
+            ListenableFuture<PreparedStatement> future = session.prepareAsync(st);
+            Futures.addCallback(future, new FutureCallback<PreparedStatement>() {
+                @Override public void onSuccess(PreparedStatement ps) {
+                    psEmitter.onNext(ps);
+                    psEmitter.onCompleted();
+                }
+
+                @Override public void onFailure(Throwable throwable) {
+                    // Retry
+                    psEmitter.onError(throwable);
+                }
+            });
+        }, Emitter.BackpressureMode.ERROR);
+
+        return psObservable.subscribeOn(scheduler);
     }
 
     @Override
@@ -104,8 +142,7 @@ public class RxSessionImpl implements RxSession {
 
     @Override
     public Observable<ResultSet> execute(String query, Object... values) {
-        ResultSetFuture future = session.executeAsync(query, values);
-        return ListenableFutureObservable.from(future, Schedulers.computation());
+        return scheduleStatement(new SimpleStatement(query, values), Schedulers.computation());
     }
 
     @Override
@@ -115,8 +152,7 @@ public class RxSessionImpl implements RxSession {
 
     @Override
     public Observable<ResultSet> execute(String query, Scheduler scheduler, Object... values) {
-        ResultSetFuture future = session.executeAsync(query, values, scheduler);
-        return ListenableFutureObservable.from(future, scheduler);
+        return scheduleStatement(new SimpleStatement(query, values), scheduler);
     }
 
     @Override
@@ -146,26 +182,22 @@ public class RxSessionImpl implements RxSession {
 
     @Override
     public Observable<PreparedStatement> prepare(String query) {
-        ListenableFuture<PreparedStatement> future = session.prepareAsync(query);
-        return ListenableFutureObservable.from(future, Schedulers.computation());
+        return prepare(new SimpleStatement(query));
     }
 
     @Override
     public Observable<PreparedStatement> prepare(String query, Scheduler scheduler) {
-        ListenableFuture<PreparedStatement> future = session.prepareAsync(query);
-        return ListenableFutureObservable.from(future, scheduler);
+        return prepare(new SimpleStatement(query), scheduler);
     }
 
     @Override
     public Observable<PreparedStatement> prepare(RegularStatement statement) {
-        ListenableFuture<PreparedStatement> future = session.prepareAsync(statement);
-        return ListenableFutureObservable.from(future, Schedulers.computation());
+        return schedulePrepare(statement, Schedulers.computation());
     }
 
     @Override
     public Observable<PreparedStatement> prepare(RegularStatement statement, Scheduler scheduler) {
-        ListenableFuture<PreparedStatement> future = session.prepareAsync(statement);
-        return ListenableFutureObservable.from(future, scheduler);
+        return schedulePrepare(statement, scheduler);
     }
 
     @Override
