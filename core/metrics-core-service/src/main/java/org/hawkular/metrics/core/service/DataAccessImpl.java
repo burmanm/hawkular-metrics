@@ -846,10 +846,25 @@ public class DataAccessImpl implements DataAccess {
         // The table does not exists - case such as when starting Hawkular-Metrics for the first time just before
         // compression kicks in.
         if(ts == null || prepMap.floorKey(timestamp) == 0L) {
+            log.infof("===========> Trying to read data_0, returning empty");
             return Observable.empty();
         }
 
+        Map.Entry<Long, Map<Integer, PreparedStatement>> floorEntry = prepMap
+                .floorEntry(timestamp);
+
+        log.infof("============> FLOORKEY: %d", floorEntry.getKey());
+
+
+        String tempTableName = getTempTableName(timestamp);
+        log.infof("=======> GETTING KEY: %s for %d", tempTableName, timestamp);
+
+        log.infof("======================> COUNT: %d", session.execute(String.format("SELECT COUNT(*) FROM %s",
+                tempTableName)).one().getLong(0));
+
+
         return Observable.from(getTokenRanges())
+                .doOnNext(tr -> log.infof("============> Reading TokenRange %s", tr.toString()))
                 .map(tr -> rxSession.executeAndFetch(
                         getTempStatement(MetricType.UNDEFINED, TempStatement.SCAN_WITH_TOKEN_RANGES, timestamp)
                                 .bind()

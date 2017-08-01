@@ -258,7 +258,11 @@ public class DataAccessITest extends BaseITest {
             subscriber.assertCompleted();
         }
 
+        ResultSet data0rs = session.execute("SELECT COUNT(*) FROM data_0");
+        System.out.printf("=============> DATA_0_COUNT %d\n", data0rs.one().getLong(0));
+
         Observable<Row> rowObservable = dataAccess.findAllDataFromBucket(start, DEFAULT_PAGE_SIZE, 2)
+                .doOnNext(o -> System.out.printf("==============> Received Row-Observable\n"))
                 .flatMap(r -> r);
 
         TestSubscriber<Row> tsr = new TestSubscriber<>();
