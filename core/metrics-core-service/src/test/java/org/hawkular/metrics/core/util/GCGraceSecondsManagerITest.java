@@ -97,7 +97,7 @@ public class GCGraceSecondsManagerITest extends BaseITest {
 
     private TestGCGraceSecondsManager manager;
 
-    @BeforeClass
+//    @BeforeClass
     public void initClass() {
         configurationService = new ConfigurationService();
         configurationService.init(rxSession);
@@ -109,7 +109,7 @@ public class GCGraceSecondsManagerITest extends BaseITest {
         session.getCluster().register(manager);
     }
 
-    @Test
+//    @Test
     public void singleNodeCluster() throws Exception {
         manager.maybeUpdateGCGraceSeconds();
 
@@ -120,7 +120,7 @@ public class GCGraceSecondsManagerITest extends BaseITest {
                 " is wrong"));
     }
 
-    @Test(dependsOnMethods = "singleNodeCluster")
+//    @Test(dependsOnMethods = "singleNodeCluster")
     public void multiNodeClusterWithRF2() throws Exception {
         manager.setClusterSize(3);
 
